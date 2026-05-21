@@ -1,0 +1,45 @@
+import type { EdgeId, SubjectType } from "./schema.js";
+
+export type EdgeKind =
+  | "about"
+  | "contains"
+  | "touches"
+  | "supersedes"
+  | "evidenced_by";
+
+export type EdgeMetadata = Record<string, unknown>;
+
+export interface Edge {
+  id: EdgeId;
+  from_id: string;
+  from_type: SubjectType;
+  to_id: string;
+  to_type: SubjectType;
+  kind: EdgeKind;
+  metadata?: EdgeMetadata;
+}
+
+export function isAllowedEdge(edge: Pick<Edge, "from_type" | "to_type" | "kind">): boolean {
+  switch (edge.kind) {
+    case "about":
+      return edge.from_type === "claim" && (edge.to_type === "component" || edge.to_type === "flow");
+
+    case "contains":
+      return (
+        (edge.from_type === "component" && edge.to_type === "component") ||
+        (edge.from_type === "flow" && edge.to_type === "flow")
+      );
+
+    case "touches":
+      return edge.from_type === "flow" && edge.to_type === "component";
+
+    case "supersedes":
+      return (
+        edge.from_type === edge.to_type &&
+        (edge.from_type === "component" || edge.from_type === "flow" || edge.from_type === "claim")
+      );
+
+    case "evidenced_by":
+      return edge.from_type === "claim" && edge.to_type === "source";
+  }
+}
