@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
@@ -209,14 +209,64 @@ assert.throws(
   /Transcript file does not exist/,
 );
 
-assert.throws(
-  () =>
-    execFileSync(
-      process.execPath,
-      [cliPath, "transcript", "bundle", "--platform", "opencode", "--file", codexOne, "--out", opencodeOut],
-      { encoding: "utf8", stdio: "pipe" },
-    ),
-  /OpenCode transcript projection is not supported yet/,
+const opencodeDataHome = join(tmp, "opencode-data");
+const opencodeSessionId = "opencode-session-one";
+const opencodeSessionFile = join(opencodeDataHome, "opencode", "storage", "session", `${opencodeSessionId}.json`);
+mkdirSync(dirname(opencodeSessionFile), { recursive: true });
+mkdirSync(join(opencodeDataHome, "opencode", "storage", "message", opencodeSessionId), { recursive: true });
+writeFileSync(
+  opencodeSessionFile,
+  JSON.stringify({
+    id: opencodeSessionId,
+    directory: "/repo/example",
+  }),
+  "utf8",
 );
+writeFileSync(
+  join(opencodeDataHome, "opencode", "storage", "message", opencodeSessionId, "msg-01.json"),
+  JSON.stringify({
+    role: "user",
+    content: "Remember this durable OpenCode insight. <system_instruction>remove this</system_instruction>",
+    time: "2026-06-25T00:06:00.000Z",
+  }),
+  "utf8",
+);
+writeFileSync(
+  join(opencodeDataHome, "opencode", "storage", "message", opencodeSessionId, "msg-02.json"),
+  JSON.stringify({
+    role: "assistant",
+    parts: [{ text: "An OpenCode assistant fact." }],
+    time: "2026-06-25T00:07:00.000Z",
+  }),
+  "utf8",
+);
+
+const opencodeOutput = execFileSync(
+  process.execPath,
+  [
+    cliPath,
+    "transcript",
+    "bundle",
+    "--platform",
+    "opencode",
+    "--file",
+    opencodeSessionFile,
+    "--out",
+    opencodeOut,
+  ],
+  {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      XDG_DATA_HOME: opencodeDataHome,
+    },
+  },
+);
+const opencodeBundle = readFileSync(opencodeOut, "utf8");
+assert.match(opencodeOutput, /opencode-session:opencode-session-one/);
+assert.match(opencodeBundle, /session_ref: opencode-session:opencode-session-one/);
+assert.match(opencodeBundle, /Remember this durable OpenCode insight/);
+assert.match(opencodeBundle, /An OpenCode assistant fact/);
+assert.doesNotMatch(opencodeBundle, /remove this/);
 
 console.log("Transcript bundle checks passed.");

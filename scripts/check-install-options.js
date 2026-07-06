@@ -51,10 +51,12 @@ assert.ok(noHooks.output.includes(greplicaHookGuidance));
 assert.equal(existsSync(join(noHooks.codexHome, "hooks.json")), false);
 assert.equal(readConfig(noHooks.greplicaHome).session.autoMemoryUpdates, false);
 
-const unsupportedHooks = installInTempRepo("unsupported-hooks", ["--hooks", "enabled", "--auto-memory", "enabled"], "opencode");
-assert.match(unsupportedHooks.output, /Hooks: not installed for this platform\./);
-assert.match(unsupportedHooks.output, /Automatic memory updates: disabled\./);
-assert.equal(readConfig(unsupportedHooks.greplicaHome).session.autoMemoryUpdates, false);
+const opencodeHooks = installInTempRepo("opencode-hooks", ["--hooks", "enabled", "--auto-memory", "enabled"], "opencode");
+assert.match(opencodeHooks.output, /Installed Greplica for OpenCode\./);
+assert.match(opencodeHooks.output, /Hooks: installed for UserPromptSubmit, Stop\./);
+assert.match(opencodeHooks.output, /Automatic memory updates: enabled\./);
+assert.ok(existsSync(join(opencodeHooks.xdgConfigHome, "opencode", "hooks.json")));
+assert.equal(readConfig(opencodeHooks.greplicaHome).session.autoMemoryUpdates, true);
 
 const copilotHooks = installInTempRepo("copilot-hooks", ["--hooks", "enabled", "--auto-memory", "enabled"], "copilot");
 assert.match(copilotHooks.output, /Installed Greplica for GitHub Copilot CLI\./);
@@ -105,6 +107,7 @@ function installInTempRepo(name, flags, platform = "codex") {
   const greplicaHome = join(tmp, name, "greplica-home");
   const codexHome = join(tmp, name, "codex-home");
   const copilotHome = join(tmp, name, "copilot-home");
+  const xdgConfigHome = join(tmp, name, "xdg-config-home");
   mkdirSync(repo, { recursive: true });
   execFileSync("git", ["init", "--quiet"], { cwd: repo, encoding: "utf8" });
 
@@ -113,7 +116,7 @@ function installInTempRepo(name, flags, platform = "codex") {
     GREPLICA_HOME: greplicaHome,
     CODEX_HOME: codexHome,
     COPILOT_HOME: copilotHome,
-    XDG_CONFIG_HOME: join(tmp, name, "xdg-config-home"),
+    XDG_CONFIG_HOME: xdgConfigHome,
     GREPLICA_INSTALL_SKIP_PREWARM: "1",
   };
   const output = execFileSync(
@@ -130,7 +133,7 @@ function installInTempRepo(name, flags, platform = "codex") {
     encoding: "utf8",
     env,
   });
-  return { repo, greplicaHome, codexHome, copilotHome, output, env };
+  return { repo, greplicaHome, codexHome, copilotHome, xdgConfigHome, output, env };
 }
 
 function readConfig(greplicaHome) {
