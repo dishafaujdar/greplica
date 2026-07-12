@@ -316,6 +316,13 @@ async function runProposalValidateCommand(args: string[]): Promise<void> {
   const result = await service.validateProposal(repo, proposal);
   if (result.valid) {
     console.log("Proposal is valid.");
+    for (const [claimId, matches] of Object.entries(result.duplicate_warnings)) {
+      for (const match of matches) {
+        console.log(
+          `Warning: claim "${claimId}" is similar to existing claim "${match.claim_id}" (similarity: ${match.similarity.toFixed(4)}). Consider using supersedes instead.`,
+        );
+      }
+    }
     return;
   }
   console.log("Proposal is invalid:");
